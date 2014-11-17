@@ -1,0 +1,558 @@
+/**********
+/* Grille - 960.gs
+**********/
+.container_16 {
+	max-width: 960px;
+	width: 92%;
+	margin: 0 auto;
+}
+.grid_6,
+.grid_8,
+.grid_10,
+.grid_16 {
+	display:inline;
+	float: left;
+	position: relative;
+	margin-left: 1%;
+	margin-right: 1%;
+}
+
+.container_16 .grid_6 {
+	width:35.5%;
+}
+
+.container_16 .grid_8 {
+	width:48.0%;
+}
+
+.container_16 .grid_10 {
+	width:60.5%;
+}
+
+.container_16 .grid_16 {
+	width:98.0%;
+}
+
+.clearfix:after {
+	clear: both;
+	content: ' ';
+	display: block;
+	font-size: 0;
+	line-height: 0;
+	visibility: hidden;
+	width: 0;
+	height: 0;
+}
+
+.clearfix {
+	display: inline-block;
+}
+
+* html .clearfix {
+	height: 1%;
+}
+
+.clearfix {
+	display: block;
+}
+
+/***************
+/* Formulaire
+***************/
+
+form#formulaire {
+		margin: 0 auto;
+		background: #0097b6;
+		-moz-border-radius: 5px;
+		-webkit-border-radius: 5px;
+		-khtml-border-radius: 5px;
+		border-radius: 5px;
+		counter-reset: fieldsets;
+		padding: 20px;
+		width: 500px;
+		}
+		
+		form#formulaire fieldset {
+			border: none;
+			margin-bottom: 10px;
+			}
+		
+		form#formulaire fieldset:last-of-type {
+			margin-bottom: 0;
+			}
+								
+			form#formulaire ol li {
+				background: rgba(255,255,255,.3);
+				background: #4cb6cb;
+				border-color: rgba(255,255,255,.6);
+				border-style: solid;
+				border-width: 2px;
+				-moz-border-radius: 5px;
+				-webkit-border-radius: 5px;
+				-khtml-border-radius: 5px;
+				border-radius: 5px;
+				line-height: 30px;
+				list-style: none;
+				padding: 5px 10px;
+				margin-bottom: 2px;
+				}
+							
+				form#formulaire ol ol li {
+					background: none;
+					border: none;
+					float: left;
+					}
+			
+			form#formulaire label {
+				float: left;
+				font-size: 15px;
+				width: 150px;
+				}
+				
+			form#formulaire fieldset fieldset label {
+				background:none no-repeat left 50%;
+				line-height: 20px;
+				padding: 0 0 0 30px;
+				width: auto;
+				}
+					
+				form#formulaire fieldset fieldset label:hover {
+					cursor: pointer;
+					}
+				
+			form#formulaire input:not([type=radio]),
+			form#formulaire textarea {
+				background: #ffffff;
+				border: none;
+				-moz-border-radius: 3px;
+				-webkit-border-radius: 3px;
+				-khtml-border-radius: 3px;
+				border-radius: 3px;
+				font: italic 15px Georgia, "Times New Roman", Times, serif; 
+				outline: none;
+				padding: 5px;
+				width: 200px;
+				}
+					
+				form#formulaire input:not([type=submit]):focus,
+				form#formulaire textarea:focus {
+					background: #eaeaea;
+					}
+					
+				form#formulaire input[type=radio] {
+					float: left;
+					margin-right: 5px;
+					}
+						
+			form#formulaire button {
+				background: #cecece;
+				border: none;
+				-moz-border-radius: 20px;
+				-webkit-border-radius: 20px;
+				-khtml-border-radius: 20px;
+				border-radius: 20px;
+				color: #ffffff;
+				display: block;
+				font: 15px Georgia, "Times New Roman", Times, serif;
+				letter-spacing: 1px;
+				margin: auto;
+				padding: 5px 20px;
+				text-shadow: 0 1px 1px #000000;
+				text-transform: uppercase;
+				}
+					
+				form#formulaire button:hover {
+					background: #4cb6cb;
+					cursor: pointer;
+					}
+
+/************
+/* Tableau
+************/
+
+.bordered {
+	font-size: 16px;
+	background: #e1e1e1;
+    border: solid #ccc 1px;
+    -moz-border-radius: 6px;
+    -webkit-border-radius: 6px;
+    border-radius: 6px;
+    -webkit-box-shadow: 0 1px 1px #ccc; 
+    -moz-box-shadow: 0 1px 1px #ccc; 
+    box-shadow: 0 1px 1px #ccc;
+}
+
+.bordered tr:hover {
+    background: #c7e1ff;
+    -o-transition: all 0.1s ease-in-out;
+    -webkit-transition: all 0.1s ease-in-out;
+    -moz-transition: all 0.1s ease-in-out;
+    -ms-transition: all 0.1s ease-in-out;
+    transition: all 0.1s ease-in-out;     
+}    
+    
+.bordered td, .bordered th {
+	vertical-align:middle;
+    border-left: 1px solid #bbb;
+    border-top: 1px solid #bbb; 
+    padding: 10px;
+    text-align: center;    
+}
+
+.bordered .hidden {
+	border-top: 1px dashed #bbb;
+	border-bottom: 1px double #bbb;
+}
+
+.bordered th {
+    background-color: #57bbd0;
+    -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset; 
+    -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;  
+    box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;        
+    border-top: none;
+    text-shadow: 0 1px 0 rgba(255,255,255,.5); 
+}
+
+.bordered td:first-child, .bordered th:first-child {
+    border-left: none;
+}
+
+.bordered tr:last-child td:first-child {
+    -moz-border-radius: 0 0 0 6px;
+    -webkit-border-radius: 0 0 0 6px;
+    border-radius: 0 0 0 6px;
+}
+
+.bordered tr:last-child td:last-child {
+    -moz-border-radius: 0 0 6px 0;
+    -webkit-border-radius: 0 0 6px 0;
+    border-radius: 0 0 6px 0;
+}
+
+
+/**********
+/* Header
+**********/
+	header[role=banner] {
+		background:#fff;
+		border-bottom:4px solid #0097b6;
+		padding: 19px 0;
+		overflow: hidden;
+	}
+	
+	header figure {
+		border: 3px solid #eee;
+		float: right;
+		height: 156px;
+		width: 450px;
+	}
+	
+	header figure img {
+		height: 150px;
+		position: relative;
+		width: 445px;
+	}
+	
+	header hgroup {
+		float: left;
+		padding: 42px 0;
+	}
+	
+	header hgroup h1 {
+		color:#555;
+		font-family:'DroidSansBold', Arial, sans-serif;
+	}
+	
+	header hgroup h2 {
+		color:#cecece;
+		font-style: italic;
+		text-shadow: 1px 1px 0 rgba(0,0,0,.3);
+	}
+
+/***************
+/* Menu Haut
+***************/
+	#menu_haut {
+		border: 1px solid #0097b6;
+		height: 50px;
+		padding: 10px;
+		max-width: 960px;
+		width: 92%;
+		margin: auto;
+		background: #e1e1e1;
+		-moz-border-radius: 15px;
+		-webkit-border-radius: 15px;
+		border-radius: 15px;
+	}
+		
+	#menu_haut ul{
+		list-style-type : none;
+		padding : 2px;
+		margin : 0px;
+	}
+	
+	#menu_haut li{
+		display: inline;
+		padding: 15px;
+	}
+	
+	#menu_haut li a {
+		text-decoration : none;
+		background : #e1e1e1;
+		color : #000;
+		padding: 5px;
+		margin: 5px;
+		-moz-border-radius: 5px;
+		-webkit-border-radius: 5px;
+		border-radius: 5px;
+	}
+	
+	#menu_haut li a:hover {
+		text-decoration : none;
+		background: #0097b6;
+		color : #000;
+	}
+	
+/*******************
+/* Menu Compteur
+*******************/
+
+
+.menu_compteurs {
+    border-radius: 5px;
+    border-collapse: separate;
+	font-size: 12px;
+	background: #e1e1e1;
+    border: 1px solid #ccc;
+}
+    
+.menu_compteurs th, td {
+	padding:5px;
+	vertical-align:center;
+}
+
+/***************
+/* Corps - Main
+***************/
+
+
+	body {
+		padding: 0;
+		margin: 0;
+		min-height:100%;
+	}
+
+	section[role=main] {
+		padding: 21px 0;
+		overflow: hidden;
+	}
+	
+	section[role=main] > div {
+		margin-top: 45px;
+	}
+	
+	section[role=main] h3 {
+		border-bottom: 1px solid #e1e1e1;
+		padding: 0 0 20px 60px;
+		margin-top: 0px;
+		position: relative;
+ 	}
+	
+	section[role=main] h3:after, h3:before {
+		content: ' ';
+		display: block;
+		height: 50px;
+		left: 0;
+		position: absolute;
+		top: -15px;
+		width: 50px;
+	}
+	
+	section[role=main] h3:before {
+		background-color: #0097b6;
+		border-radius: 25px;
+	}
+	
+	section[role=main] h4 {
+	border-bottom: 1px dashed #e1e1e1;
+	text-align: center;
+ 	}
+	
+	/***************
+	/* footer
+	***************/
+	
+	section[role=foot] {
+		padding: 21px 0;
+		overflow: hidden;
+		font-size:12px;
+		color:#a1a1a1;
+	}
+	
+	section[role=foot] > div {
+		 margin-top:0px;
+		 border-top: 1px solid #e1e1e1;
+	}
+	
+	section[role=foot] p {
+		margin-top:5px;
+		line-height:15px;
+	}
+	
+		
+		/***************
+		/* Pictos titres
+		***************/
+		
+		section[role=main] h3:after {
+			background:url('../img/pictos-titre.png') no-repeat 11px 10px;
+		}
+		
+		section[role=main] .competences h3:after {
+			background-position: 11px -34px;
+		}
+	
+		section[role=main] .malettes h3:after {
+			background-position: 11px -86px;
+		}
+		
+		section[role=main] .formations h3:after {
+			background-position: 10px -139px;
+		}
+		
+		section[role=main] .loisirs h3:after {
+			background-position: 10px -250px;
+		}
+		
+		section[role=main] .contact h3:after {
+			background-position: 11px -194px;
+		}
+	
+	
+	.menu_principal ul, .formations ul {
+		margin-left: 60px;
+	}
+	
+	section[role=main] h4 {
+		margin-bottom: 0px;
+	}
+	
+	section[role=main] h4 strong {
+		color: #147393;
+		font-weight: normal;
+	}
+	
+	.menu_principal li, .formations li {
+		margin-bottom: 21px;
+	}
+	
+	.menu_principal li:last-child, .formations li:last-child {
+		margin-bottom: 21px;
+	}
+	
+	.menu_principal li p, .formations li p {
+		margin-left: 30px;
+	}
+	
+	/**********************************************
+	/* Affichage sous forme de tags
+	**********************************************/
+	.competences .tags li {
+		background-color:#33a4c9;
+		border:1px solid #1b91b7;
+		border-radius: 15px;
+		color:#fff;
+		display: inline-block;
+		line-height: 13px;
+		margin: 0 7px 17px 0;
+		padding: 5px 10px;
+	}
+	
+	/************************************************
+	/* Affichage sous forme de barres
+	*************************************************/
+	.apropos .barres li {
+		margin-bottom: 21px;
+		position: relative;
+	}
+	
+	.apropos .barres li:after {
+		background: #e1e1e1;
+		bottom: -4px;
+		content: ' ';
+		display: block;
+		height: 5px;
+		position: absolute;
+		width:100%;
+	}
+	
+	.apropos .barres li span {
+		background: #33a4c9;
+		bottom: -4px;
+		content: ' ';
+		display: block;
+		height: 5px;
+		left: 0;
+		position: absolute;
+		width: inherit;
+		z-index: 1;
+	}
+	
+	
+/* JQuery UI customisation */
+
+	.ui-dialog > .ui-widget-header {background: #57bbd0;}
+	.ui-autocomplete .ui-menu-item .ui-state-focus {
+		background:#e1e1e1;
+}
+	
+	/***********
+	/* Pictos
+	***********/
+	.lieu, .dates, .phone, .mail, .site, .form, .twitter, .facebook, .dribbble, .skype {
+		background: url('../img/pictos-gris.png') no-repeat;
+		padding-left: 25px;
+		margin: 0 10px 1px 10px;
+	}
+	
+	.lieu {
+		background-position: 0 -2px;
+		color: #999;
+	}
+	
+	.dates {
+		background-position: 0 -22px;
+		color: #999;
+	}
+	
+	.phone {
+		background-position: 0 -40px;
+	}
+	
+	.mail {
+		background-position: 0 -58px;
+	}
+	
+	.site {
+		background-position: 0 -80px;
+	}
+	
+	.form {
+		background-position: 0 -100px;
+	}
+	
+	.twitter {
+		background-position: 0 -122px;
+	}
+	
+	.facebook {
+		background-position: 0 -140px;
+	}
+	
+	.dribbble {
+		background-position: 0 -160px;
+	}
+	
+	.skype {
+		background-position: 0 -180px;
+	}

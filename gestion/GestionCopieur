@@ -1,0 +1,329 @@
+#! /usr/bin/perl -w
+
+use feature qw/switch/;
+use Apache2::Request;
+use Template;
+use strict;
+use CGI::Cookie;
+use CGI::Session;
+use List::Util qw(first);
+use lib '/srv/konica/scripts';  # Emplacement absolu des scripts
+use Ldaptest;
+use DBtest;
+use DateTime::Format::MySQL;
+use DateTime;
+
+# Récupération de la requête du navigateur
+local our $r = shift;
+local our $req = Apache2::Request->new($r);
+# Récupération des Cookies envoyés par le navigateur puis extraction du SID
+local our @cook_recu = CGI::Cookie->fetch($r);
+local our $cook_sid = first { /CGISESSID=/ } @cook_recu;
+local our $sid = undef;
+if ($cook_sid) { 
+	$sid = $cook_sid->value; 
+}
+# Création ticket de session si inexistant, ou login si pas encore logué
+local our $session = new CGI::Session(undef, $sid, {Directory=>'/tmp'});
+$sid = $session->id() ;
+local our $body_ref = undef;
+local our $auth_result = ( $session->param("logged") or 'undef' );
+local our $login = ( $session->param("login") or 'undef' );
+local our $templ_param = undef;
+if ( $auth_result eq 'true' ) { 
+    $body_ref = $req->param('page');
+    if (!defined $body_ref) { $body_ref = "recherche_user" ;}
+}
+else { $body_ref = "identification"; }
+
+# Création de l'objet Template et infos globales
+local our $template = Template->new( {
+	INCLUDE_PATH => '/srv/konica/gestion/template/',
+});
+local our %templ_param = (title => "Quotas copieur",
+login => "$login");
+
+local our $popup = undef;
+if (($body_ref eq 'ajout_gestionnaire') or ($body_ref eq 'suppression_gestionnaire') or ($body_ref eq 'deauth') or ($body_ref eq 'ajout_credit') or ($body_ref eq 'modif_user') or ($body_ref eq 'test')) { $popup = "1"; }
+
+# Envoi du header du protocol HTML, puis du header de la page sauf si...
+if (!defined $popup) {
+	print "Content-type: text/html\n\n";
+	$template->process('header.tmpl', \%templ_param) or die $template->error();
+}
+
+# Identification de la page demandé et réponse appropriée.
+given ($body_ref) {
+	when ("identification") {
+		$template->process('body_iden.tmpl', \%templ_param) or die $template->error();
+	}
+	
+	when ("deauth") {
+		local our $c = CGI::Cookie->new(- name => 'CGISESSID',
+			- value => '',
+			- expires => '-1d' );
+			$session->delete();
+		local our $res_deauth = "D&eacute;connexion r&eacute;ussi";
+		local our $titre = "D&eacute;connexion";
+		
+		print "Set-Cookie: $c\n";
+		print "Content-type: application/html\n\n";
+		print qq%<div title="R&eacute;sultat de la d&eacute;connexion"><p style="text-align:center"><img src=img/valid.png height=18>&nbsp;D&eacute;connexion effectu&eacute;e avec succ&egrave;s</div>%;	
+		
+	}
+	
+	when ("recherche_user") {
+		$template->process('menu_haut.tmpl',\%templ_param) or die $template->error();
+		if ($req->param('id_cherche') ) {
+			local our $id_cherche = $req->param('id_cherche');
+			local our $userinfo = Ldaptest::Recherche($id_cherche);
+			if ( scalar(keys %$userinfo) eq '0' ) { $templ_param{'vide'} = '1';}
+			else {
+				local our $uid = undef;
+				foreach $uid (keys %$userinfo ) {
+					local our $dbid = DBtest::QueryIDSimple($uid);
+					if (!defined $dbid) { 
+					$templ_param{'users'}{$uid}{'undefined'} = 'true';
+					$templ_param{'users'}{$uid}{'cn'} = $$userinfo{$uid}[0];}
+					else {
+						local our @quota = DBtest::QueryQuota($dbid);
+						$templ_param{'users'}{$uid}{'cn'} = $$userinfo{$uid}[0];
+#						$templ_param{'users'}{$uid}{'copy_black'} = $quota[0];
+#						$templ_param{'users'}{$uid}{'copy_color'} = $quota[1];
+						$templ_param{'users'}{$uid}{'credit'} = $quota[2];
+#						$templ_param{'users'}{$uid}{'superuser'} = $quota[3];
+#						$templ_param{'users'}{$uid}{'dbid'} = $dbid;
+					}
+					
+				}
+
+			}
+		}
+	$template->process('body_recherche.tmpl', \%templ_param ) or die $template->error();
+	}
+	
+	when ("user"){
+			$template->process('menu_haut.tmpl',\%templ_param) or die $template->error();
+	if ($req->param('uid') ) {
+		local our $uid = $req->param('uid');
+		local our @details = Ldaptest::Details("$uid");
+		$templ_param{'uid'} = "$uid";
+		$templ_param{'user'} = "$details[2]";
+		$templ_param{'mail'} = "$details[1]";
+		if ( "$details[0]" eq 'student' ) {$templ_param{'student'} = '1';}
+		else { $templ_param{'student'} = '0'; }
+		local our @infos= DBtest::QueryInfoID("$uid");
+		$templ_param{'credit'} = $infos[2];
+		$templ_param{'superuser'} = $infos[3];
+		$templ_param{'desactiv_notif_user'} = $infos[5];
+		$templ_param{'dbid'} = ($infos[4] or 'inconnu');
+		if ($infos[4] and ($infos[4] ne 'inconnu')){
+			local our $result = DBtest::QueryPaiements("$uid");
+			local our $i = 0;
+			foreach (reverse sort (keys $result)) {
+				$i++;
+				local our $datetime = DateTime::Format::MySQL->parse_timestamp( "$_" );
+				$templ_param{'paiements'}{"$i"}{'date'} = $datetime->dmy('/');
+				$templ_param{'paiements'}{"$i"}{'montant'} = $result->{"$_"}->{'montant'};
+				$templ_param{'paiements'}{"$i"}{'uid_comptable'} = $result->{"$_"}->{'uid_comptable'};
+			}
+			local our $compteurs = DBtest::QueryCompteurSom("$infos[4]");
+			$i = 0;
+			foreach ( reverse sort( keys $compteurs )) {
+				$i++;
+				local our $datetime = DateTime::Format::MySQL->parse_timestamp( "$_");
+				$templ_param{'compteurs'}{"$i"}{'date'} = $datetime->dmy('/');
+				$templ_param{'compteurs'}{"$i"}{'format'} = $compteurs->{"$_"}->{'Media'};
+				$templ_param{'compteurs'}{"$i"}{'nombre'} = $compteurs->{"$_"}->{'nombre'};
+				$templ_param{'compteurs'}{"$i"}{'recto'} = $compteurs->{"$_"}->{'recto'};
+			}
+		}
+	}
+
+	$template->process('body_user.tmpl',\%templ_param) or die $template->error;
+	}
+	
+	when ("ajout_credit"){
+		local our $contenu = 'Un probl&egrave;me est survenu';
+		local our $img = '<img src=img/delete_256.png height=18>';
+		use MIME::Lite;
+		if ( $req->param("uid") ){
+			local our $userid = $req->param("uid");
+			local our $dbid = $req->param("dbid");
+			if ("$dbid" eq 'inconnu') { 
+				DBtest::QueryAjoutID("$userid");
+				$dbid = DBtest::QueryIDSimple("$userid");
+			}
+			local our $montant = $req->param("montant_credit");
+			local our $uid_comptable = "$login";
+			DBtest::QueryAjoutCredit("$dbid","$montant");
+			DBtest::AjoutPaiement("$userid","$montant","$uid_comptable");
+			$img = '<img src=img/valid.png height=18>';
+			if ( $req->param("notif_mail") ) {
+				if ($req->param('mail') ){
+					local our @quota = DBtest::QueryQuota("$dbid");
+					local our $msg = MIME::Lite->new(
+						From    => 'gestion-copieur-bourges@univ-orleans.fr',
+						To      => $req->param('mail'),
+						Subject => "Paiement copieur Bourges",
+						Data    => qq%Ceci est un message automatique. N'y répondez pas.\n -------------------- \n\nVotre paiement pour les copies a été pris en compte.\nVotre crédit est désormais de $quota[2] EUR.%
+					);
+					$msg->send;
+					$contenu = "Paiement et notification r&eacute;ussis";
+				}
+				else { $contenu = "Paiement r&eacute;ussi mais le mail de l'utilisateur n'est pas renseign&eacute;";}
+			}
+		print "Content-type: application/html\n\n";
+		print qq%<div title="R&eacute;sultat du paiement"><p style="text-align:center">$img $contenu</div>%;
+		}
+		
+	}
+
+	when ("modif_user") {
+		local our $uid = $req->param('uid');
+		local our $superuser = ( $req->param('superuser') or '0' );
+		local our $desactiv_notif_user = ( $req->param('desactiv_notif_user') or '0' );
+		local our $dbid = $req->param("dbid");
+			if ("$dbid" eq 'inconnu') { 
+				DBtest::QueryAjoutID("$uid");
+				$dbid = DBtest::QueryIDSimple("$uid");
+			}
+		DBtest::ModifUser("$dbid","$desactiv_notif_user","$superuser");
+		print "Content-type: application/html\n\n";
+		print qq%<div title="R&eacute;sultat de la modification"><p style="text-align:center"><img src=img/valid.png height=18>&nbsp;Modifications effectu&eacute;es avec succ&egrave;s</div>%;	
+	}
+	
+	when ("affichage_all") {
+		$template->process('menu_haut.tmpl', \%templ_param ) or die $template->error();
+		local our $hash_ref = DBtest::QueryAll();
+		foreach (keys $hash_ref) {
+			local our @ldaprep = Ldaptest::Details( "$_" );
+			$templ_param{'users'}{"$_"}{'cn'} = $ldaprep[2];
+			$templ_param{'users'}{"$_"}{'copy_black'} = $hash_ref->{$_}->{'copy_black'};
+			$templ_param{'users'}{"$_"}{'copy_color'} = $hash_ref->{$_}->{'copy_color'};
+			$templ_param{'users'}{"$_"}{'credit'} = $hash_ref->{$_}->{'credit'};
+			$templ_param{'users'}{"$_"}{'superuser'} = $hash_ref->{$_}->{'superuser'};
+			$templ_param{'users'}{"$_"}{'dbid'} = $hash_ref->{$_}->{'ID'};
+			}
+		$template->process('body_recherche.tmpl', \%templ_param ) or die $template->error();
+
+	}
+	
+	when ("affichage_compteurs") {
+		$template->process('menu_haut.tmpl',\%templ_param ) or die $template->error();
+		local our $hash_ref;
+		local our $uid;
+		local our $dbid;
+		{
+			no warnings 'uninitialized';
+			local our $nb_result = $req->param('nb_resultats');
+			$templ_param{'nb_result'} = "$nb_result" or undef;
+			$uid = $req->param('user');;
+			if ($uid){$dbid = DBtest::QueryIDSimple("$uid");
+				$templ_param{'uid_rech'} = "$uid";}
+			local our $date_deb = $req->param('date_deb');
+			if ($date_deb) { $templ_param{'date_deb'} = "$date_deb";}
+			local our $date_fin = $req->param('date_fin');
+			if ($date_fin) { $templ_param{'date_fin'} = "$date_fin";}
+			local our $ordre = $req->param('ordre');
+			$hash_ref = DBtest::QueryCompteurs("$dbid", "$date_deb", "$date_fin", "$nb_result", "$ordre");
+		}
+		local our @details_ldap = undef;
+		local our %user_hash;
+		foreach (keys $hash_ref) {
+			local our $datetime = DateTime::Format::MySQL->parse_timestamp( $hash_ref->{"$_"}->{'Date'} );
+			$templ_param{'compteurs'}{"$_"}{'date'} = $datetime->dmy('/');
+			$templ_param{'compteurs'}{"$_"}{'heure'} = $datetime->hms;
+			$templ_param{'compteurs'}{"$_"}{'type'} = $hash_ref->{"$_"}->{'Type'};
+			$templ_param{'compteurs'}{"$_"}{'media'} = $hash_ref->{"$_"}->{'Media'};
+			$templ_param{'compteurs'}{"$_"}{'nombre'} = $hash_ref->{"$_"}->{'nombre'};
+			$templ_param{'compteurs'}{"$_"}{'recto'} = $hash_ref->{"$_"}->{'recto'};
+			$templ_param{'compteurs'}{"$_"}{'nb'} = $hash_ref->{"$_"}->{'NB'};
+			$templ_param{'compteurs'}{"$_"}{'prix'} = $hash_ref->{"$_"}->{'prix'};
+			$dbid = $hash_ref->{"$_"}->{'ID'};
+			if ( !exists ($user_hash{"$dbid"}{'uid'})) {
+				local our @resultats = DBtest::QueryUID("$dbid");
+				$uid = $resultats[0];
+				@details_ldap = Ldaptest::Details("$uid");
+				$user_hash{"$dbid"} = {'uid' => "$uid", 'cn' => "$details_ldap[2]", 'mail' => "$details_ldap[1]" };
+			}
+			$templ_param{'compteurs'}{"$_"}{'uid'} = $user_hash{"$dbid"}{'uid'};
+			$templ_param{'compteurs'}{"$_"}{'cn'} = $user_hash{"$dbid"}{'cn'};
+		}
+		
+		$template->process('body_compteurs.tmpl',\%templ_param ) or die $template->error();
+		
+	}
+	
+	when ("administration") {
+		$template->process('menu_haut.tmpl',\%templ_param ) or die $template->error();
+		
+		if ($req->param('uid_modif')){
+			local our $uid_modif = $req->param('uid_modif');
+			local our $notif_compteurs = $req->param('notif_compteurs');
+			local our $notif_paiements = $req->param('notif_paiements');
+			if ( ($req->param('ancien_notif_compteurs') ne "$notif_compteurs") or ($req->param('ancien_notif_paiements') ne "$notif_paiements")) {
+				DBtest::ModifNotifGestion("$uid_modif","$notif_compteurs","$notif_paiements");
+			}
+		}
+			
+		
+		local our $hash_ref = DBtest::QueryAllGestionnaires;
+		foreach ( keys $hash_ref ) { 
+			local our @ldap_details = Ldaptest::Details("$_");
+			$templ_param{'gestionnaires'}{"$_"}{'mail'} = $ldap_details[1];
+			$templ_param{'gestionnaires'}{"$_"}{'cn'} = $ldap_details[2];
+			$templ_param{'gestionnaires'}{"$_"}{'notif_compt'} = $hash_ref->{"$_"}->{'notif_compt'};
+			$templ_param{'gestionnaires'}{"$_"}{'notif_paiement'} = $hash_ref->{"$_"}->{'notif_paiement'};
+		}
+		$template->process('body_admin.tmpl',\%templ_param) or die $template->error();
+	}
+	
+	when ("suppression_gestionnaire") {
+		local our $uid_sup = $req->param('uid_sup');
+		local our $cn_sup = $req->param('cn_sup');
+		local our $img = '<img src=img/delete_256.png height=18>';
+		local our $resultat_global = "&eacute;chec" ;
+		if ($uid_sup) {
+			DBtest::SupGestionnaire("$uid_sup");
+			$resultat_global = 'La suppression a r&eacute;ussi';
+			$img = '<img src=img/valid.png height=18>';
+		}
+		print "Content-type: application/html\n\n";
+		print qq%<div title="Suppression de $cn_sup"><p style="text-align:center">$img $resultat_global</div>%;	
+		
+	}
+	
+	when ("ajout_gestionnaire") {
+		local our $uid_ajout = $req->param('uid_gestionnaire');
+		local our $cn_ajout = $req->param('nom_gestionnaire');
+		local our $resultat_global = 'echec';
+		local our $img = '<img src=img/delete_256.png height=18>';
+		if ($uid_ajout) {
+			local our @ldap_details= Ldaptest::Details("$uid_ajout");
+			if ( ($ldap_details[0] ne 'student') && ($ldap_details[0]) ) {
+				DBtest::AjoutGestionnaire("$uid_ajout");
+				$resultat_global = qq%L'ajout a r&eacute;ussi%;
+				$img = '<img src=img/valid.png height=18>';
+			}
+			elsif ($ldap_details[0] eq 'student') {
+				$resultat_global = 'Vous ne pouvez ajouter un &eacute;tudiant';
+			}
+			else { $resultat_global = 'Utilisateur non reconnu';}
+		}
+		else { $resultat_global = "Il faut cliquer dans la liste";}
+		print "Content-type: application/html\n\n";
+		print qq%<div title="R&eacute;sultat de l'ajout"><p style="text-align:center">$img $resultat_global</div>%;
+
+	}
+	
+	default { print q%<section role="main" class="container_16 clearfix">
+			<div class="grid_16 corps">
+			<p style="text-align:center;"><b>Erreur, pas d'action reconnue.</b><br>
+			Pour retourner &agrave; la page d'accueil, cliquez <a href="GestionCopieur">ici</a></p>
+			</div></section>%;}
+}
+
+if (!defined $popup){
+	$template->process('footer.tmpl') or die $template->error();
+}

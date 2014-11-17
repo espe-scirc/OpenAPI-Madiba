@@ -1,0 +1,301 @@
+#! /usr/bin/perl -w
+use strict;
+use  DBI;
+
+package DBtest;
+
+# Rentrez les informations d'identification ici
+my $nom_base_donnee = 'openapi';
+my $nom_hote = 'localhost';
+my $login_bd = '';
+my $mdp_bd = '';
+my $dsn = "DBI:mysql:database=$nom_base_donnee;host=$nom_hote"; 
+
+
+sub QueryAjoutID
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $uid = shift;
+	local our $sth = $dbh->prepare_cached('INSERT INTO main (uid) VALUES (?)') or die "Couldn't prepare : " . $dbh->errstr;
+	$sth->execute($uid) or die "couldn't execute :" . $sth->errstr;;
+	$sth->finish();
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryIDSimple
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $uid = shift;
+	local our $sth = $dbh->prepare_cached('SELECT ID FROM main WHERE uid = ?');
+	$sth->execute($uid);
+	local our ($dbid) = $sth->fetchrow_array();
+	$sth->finish();
+	$dbh->disconnect();
+	return $dbid;
+}
+
+
+sub QueryUID
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $userid = shift;
+	local our $sth = $dbh->prepare_cached('SELECT uid, superuser, credit FROM main WHERE ID = ?');
+	$sth->execute($userid);
+	local our @result = $sth->fetchrow_array();
+	$sth->finish();
+	$dbh->disconnect();
+	return @result;
+}
+
+sub QueryQuota 
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $dbid = shift;
+	local our @resultats = $dbh->selectrow_array(q{SELECT copy_black, copy_color, credit , superuser FROM main WHERE ID = ?}, undef, "$dbid");
+	$dbh->disconnect();
+	return @resultats;
+}
+
+sub QueryInfoID 
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $userid = shift;
+	local our @resultats = $dbh->selectrow_array(q{SELECT copy_black, copy_color, credit, superuser, ID, desactiv_notif FROM main WHERE uid = ?}, undef, "$userid");
+	$dbh->disconnect();
+	return @resultats;
+
+}
+
+sub QueryAjoutCredit
+{
+	use DBI qw(:sql_types);
+	local our $dbid = shift;
+	local our $credit = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{UPDATE main SET credit=credit+? WHERE ID=?}, undef, "$credit", "$dbid") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryPaiements
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $userid = shift;
+	local our $resultats = $dbh->selectall_hashref(q{SELECT date, montant, uid_comptable FROM paiements WHERE uid = ?}, 'date', undef,  "$userid");
+	$dbh->disconnect();
+	return $resultats;
+}
+
+sub AjoutPaiement
+{
+	use DBI qw(:sql_types);
+	local our $userid = shift;
+	local our $montant = (shift || '0');
+	local our $uid_comptable = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{INSERT INTO paiements VALUES(DEFAULT,?,?,?)}, undef, "$montant", "$userid", "$uid_comptable") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub ModifSuperuser
+{
+	use DBI qw(:sql_types);
+	local our $dbid = shift;
+	local our $superuser = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{UPDATE main SET superuser=? WHERE ID=?}, undef, "$superuser", "$dbid") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub ModifUser
+{
+	use DBI qw(:sql_types);
+	local our $dbid = shift;
+	local our $desactiv_notif = (shift || '0');
+	local our $superuser = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{UPDATE main SET superuser=?, desactiv_notif=? WHERE ID=?}, undef, "$superuser", "$desactiv_notif", "$dbid") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryAjoutQuota
+{
+	use DBI qw(:sql_types);
+	local our $userid = shift;
+	local our $copy_black = (shift || '0');
+	local our $copy_color = (shift || '0');
+	local our $credit = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{UPDATE main SET copy_black=copy_black+?, copy_color=copy_color+?, credit=credit+? WHERE ID=?}, undef, "$copy_black", "$copy_color", "$credit", "$userid") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QuerySoustractionQuota
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	use DBI qw(:sql_types);
+	local our $userid = (shift || '0');
+	local our $copy_black = (shift || '0');
+	local our $copy_color = (shift || '0');
+	local our $credit = (shift || '0');
+	$dbh->do(q{UPDATE main SET copy_black=copy_black-?, copy_color=copy_color-?, credit=credit-? WHERE ID=?}, undef, "$copy_black", "$copy_color", "$credit",  "$userid");
+	$dbh->disconnect();
+}
+
+sub AjoutCompteur
+{
+	use DBI qw(:sql_types);
+	local our $job_ID = shift;
+	local our $userid = shift;
+	local our $job_type = shift;
+	local our $media_type = shift;
+	local our $NB = shift;
+	local our $recto = shift;
+	local our $nombre_doc = shift;
+	local our $prix = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{INSERT INTO counter SET JobID=?, ID=?, Type=?, Media=?, NB=?, recto=?, nombre=?, prix=?}, undef, "$job_ID", "$userid", "$job_type","$media_type","$NB","$recto","$nombre_doc","$prix" ) or die "Couldn't do : " . $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryCompteurSom
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $dbid = shift;
+	local our $resultats = $dbh->selectall_hashref(q{SELECT date, Media, nombre, recto FROM counter WHERE ID = ? ORDER BY date DESC LIMIT 5}, 'date', undef, "$dbid");
+	$dbh->disconnect();
+	return $resultats;
+}
+
+sub QueryCompteurs
+{
+        local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $dbid = shift;
+	local our $date_deb = shift;
+	local our $date_fin = shift;
+	local our $limit = (shift || '25');
+	if ($limit eq 'tous') { $limit = '18446744073709551615';}
+	local our $ordre = (shift or 'derniers');
+	local our $where_ID_ins;
+	local our $order_by_ins;
+	local our $date_ins;
+	local our $debut_date = 'WHERE UNIX_TIMESTAMP(date)';
+	if ($dbid) { $where_ID_ins = qq%WHERE ID=$dbid% ;
+		$debut_date = 'AND UNIX_TIMESTAMP(date)';}
+	if ($date_deb) { $date_ins = qq%$debut_date BETWEEN UNIX_TIMESTAMP('$date_deb') AND UNIX_TIMESTAMP('$date_fin')%;}
+	if ($ordre eq 'derniers') { $order_by_ins = 'DESC ';}
+	local our $sql_statement;
+	{
+		no warnings 'uninitialized';
+		$sql_statement = qq%SELECT * FROM counter $where_ID_ins $date_ins ORDER BY JobID $order_by_ins LIMIT $limit%;
+	}
+	local our $resultats = $dbh->selectall_hashref("$sql_statement", 'JobID', undef,);
+	$dbh->disconnect();
+	return $resultats;
+}
+
+sub QueryMiseQuota
+{
+	use DBI qw(:sql_types);
+	local our $userid = shift;
+	local our $copy_black = (shift || '0');
+	local our $copy_color = (shift || '0');
+	local our $credit = (shift || '0');
+	local our $superuser = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $query =  sprintf("INSERT INTO main ( uid, copy_black, copy_color, credit, superuser ) values ( \"$userid\", $copy_black, $copy_color, $credit, $superuser ) ON DUPLICATE KEY UPDATE copy_black=$copy_black, copy_color=$copy_color, credit=$credit, superuser=$superuser");
+	$dbh->do("$query") ;
+	$dbh->disconnect();
+}
+
+sub QueryReturnQuota
+{
+	use DBI qw(:sql_types);
+	local our $dbid = shift;
+	local our $copy_black = (shift || '0');
+	local our $copy_color = (shift || '0');
+	local our $credit = (shift || '0');
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $sth = $dbh->prepare_cached("UPDATE main SET copy_black=?, copy_color=?, credit=? WHERE ID=?") or die "Couldn't prepare : "  . $dbh->errstr;
+	$sth->bind_param(1, $copy_black, { TYPE => SQL_INTEGER });
+	$sth->bind_param(2, $copy_color, { TYPE => SQL_INTEGER });
+	$sth->bind_param(3, $credit, { TYPE => SQL_INTEGER });
+	$sth->bind_param(4, $dbid, { TYPE => SQL_INTEGER });
+	$sth->execute() or die "couldn't execute :" . $sth->errstr;
+	$sth->finish();
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryAll
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $hash_ref = $dbh->selectall_hashref( 'SELECT uid, copy_black, copy_color, credit , superuser, ID FROM main','uid');
+	$dbh->disconnect();
+	return $hash_ref;
+}
+
+sub QueryAdminQuota
+{
+	local our $userid = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $sth = $dbh->prepare_cached('SELECT uid, COUNT(*) FROM gestion WHERE uid=?;');
+	$sth->bind_param(1,$userid);
+	$sth->execute() or die "couldn't execute :" . $sth->errstr;
+	local our ($resultat) = $sth->fetchrow_array();
+	$sth->finish();
+	$dbh->disconnect();
+	return $resultat;
+}
+
+sub QueryAllGestionnaires
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $resultats = $dbh->selectall_hashref(q{SELECT * from gestion}, 'uid');
+	$dbh->disconnect();
+	return $resultats;
+}
+
+sub ModifNotifGestion
+{
+	local our $uid_modif = shift;
+	local our $notif_compteurs = shift;
+	local our $notif_paiements = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{UPDATE gestion SET notif_compt=? , notif_paiement=? WHERE uid=?}, undef, "$notif_compteurs", "$notif_paiements", "$uid_modif") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub AjoutGestionnaire
+{
+	local our $uid_ajout = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{INSERT INTO gestion (uid) values(?);},undef, "$uid_ajout") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub SupGestionnaire
+{
+	local our $uid_sup = shift;
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	$dbh->do(q{DELETE FROM gestion WHERE uid=?;},undef, "$uid_sup") or die $dbh->errstr;
+	$dbh->disconnect();
+	return 0;
+}
+
+sub QueryNotifCompteurs
+{
+	local our $dbh = DBI->connect( $dsn, $login_bd, $mdp_bd );
+	local our $array_ref = $dbh->selectcol_arrayref('SELECT uid FROM gestion WHERE notif_compt=1');
+	$dbh->disconnect();
+	return $array_ref;
+}
+1;

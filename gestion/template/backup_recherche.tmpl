@@ -1,0 +1,77 @@
+<script>
+$(document).ready(function()
+         {
+	$(".rowToClick").click(function() { $(this).nextUntil(".rowToClick").toggle(); });
+         $(".chkquota").click(function() {
+	 $(this).parents("tr").find('input[type=text]').prop("disabled", this.checked);
+	 })
+	 });
+</script>
+<section role="main" class="container_16 clearfix">
+	<div class="grid_16 corps">
+		<h3>Recherche d'un utilisateur</h3>
+		<form id=formulaire method=post action="GestionCopieur?page=recherche_user">
+			<fieldset>
+			<ol>
+				<li>
+				<label for=nom>Nom d'utilisateur</label>
+				<input id=nom name=id_cherche type=text placeholder="Identifiant informatique" required autofocus>
+				</li>
+			</ol>
+			</fieldset>
+			<fieldset>
+				<button type=submit>Valider</button>
+			</fieldset>
+		</form>
+	</div>
+	
+	[% IF vide || users %]
+	<div class="grid_16 malettes">
+		<h3>R&eacute;sultats de la recherche</h3>
+	[% END %]
+		[% IF vide %]
+		<p><b>Aucun utilisateur ne correspond &agrave; votre recherche</b></p>
+		[% END %]
+		[% IF users %]
+		<table class="bordered" style="margin: 10px auto">
+			<thead>
+			<tr>
+				<th>Nom complet</th>
+				<th>Login</th>
+				<th>Quota Noir</th>
+				<th>Quota Couleur</th>
+				<th>Cr&eacute;dit</th>
+				<th>Restriction</th>
+			</tr>
+			</thead>
+			[% FOREACH user IN users.keys %]
+			<tr class='rowToClick'>
+				<td>[% users.$user.cn %]</td>
+				<td>[% user %]</td>
+				[% IF users.$user.undefined %]
+				<td colspan=4>L'utilisateur n'est pas pr&eacute;sent dans la base de Quota</td>
+				[% ELSE %]
+				<td>[% users.$user.copy_black %]</td>
+				<td>[% users.$user.copy_color %]</td>
+				<td>[% users.$user.credit %]</td>
+				<td>
+				[% IF users.$user.superuser %]
+				Cr&eacute;dit <b>inactif</b>
+				[% ELSE %]
+				Cr&eacute;dit <b>actif</b>
+				[% END %]
+				</td>
+				[% END %]
+				<tr style="display: none">
+				<td colspan=2 class="hidden"><form method="post" action="GestionCopieur?page=modif_credit"><input type="checkbox" name="desactiv_modif" class='chkquota' [% IF users.$user.superuser %] checked [% END %]/>Quotas inactifs</td>
+				<td class="hidden"><input name="cp_black_modif" type="text" class="quota" style="width: 50px"[% IF users.$user.superuser %] disabled [% END %]></td>
+				<td class="hidden"><input name="cp_color_modif" type="text" class="quota" style="width: 50px"[% IF users.$user.superuser %] disabled [% END %]></td>
+				<td class="hidden"><input name="credit_modif" type="text" class="quota" required style="width: 50px"[% IF users.$user.superuser %] disabled [% END %]></td>	
+				<input type="hidden" name="user_modif" value="[% user %]" /><input type="hidden" name="dbid_modif" value="[% users.$user.dbid %]" /><input type="hidden" name="cn_modif" value="[% users.$user.cn %]" />
+				<td class="hidden"><button type="submit">Modifier</button></form></td>
+				</tr>
+			[% END %]
+		</table>				
+		[% END %]
+	</div>
+</section>

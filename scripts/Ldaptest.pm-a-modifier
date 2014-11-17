@@ -1,0 +1,97 @@
+#! /usr/bin/perl -w
+use strict;
+use Net::LDAP;
+
+package Ldaptest;
+
+# Liste de tableau des serveurs LDAP à utiliser
+my @liste_serv_LDAP = (
+        {
+		hote => '@IP:port',
+		admindn => 'DistinguishedNameOfLDAPadmin',
+		adminpwd => 'LDAPadminpassword',
+		basederecherche => 'rootDN'
+	}
+	# Si plusieurs serveur continuer à remplir dans le même format
+	# Sinon, supprimer les parties en trop, crochets inclus
+        {
+		hote => '@IP:port',
+		admindn => 'DistinguishedNameOfLDAPadmin',
+		adminpwd => 'LDAPadminpassword',
+		basederecherche => 'rootDN'
+	}
+);
+
+
+sub Recherche {
+	
+	local our $ldap;
+	local our @entries;
+	local our %userinfo;
+	local our $recherche = shift;
+	
+	for my $i (0 .. $#liste_serv_LDAP) {
+		$ldap = Net::LDAP->new( "$liste_serv_LDAP[$i]{'hote'}", onerror => 'warn') or warn qq%Connection with $liste_serv_LDAP[$i]{'hote'} failed% and next;
+		local our $mesg = $ldap->bind("$liste_serv_LDAP[$i]{'admindn'}", password=>"$liste_serv_LDAP[$i]{'adminpwd'}") or next;
+		if ($mesg->code) {next;}
+		$mesg = $ldap->search( base => "$liste_serv_LDAP[$i]{'basederecherche'}" , filter => "(|(cn=*$recherche*)(uid=*$recherche*))", attrs => ['cn','uid','eduPersonPrimaryAffiliation']);
+		if ($mesg->code) {next;}
+		@entries = $mesg->entries;
+		$ldap->unbind;
+		foreach (@entries) { $userinfo{$_->get_value('uid')} = [  $_->get_value('cn'), $_->get_value('eduPersonPrimaryAffiliation') ];}
+	}
+	if (%userinfo) { return \%userinfo; }
+	else {return;}
+}
+
+sub Details
+{
+	local our $uid = shift;
+	local our $ldap;
+	local our $dn;
+	local our $entry = undef;
+	local our $eduprimary;
+	local our $mail;
+	local our $cn;
+
+	for my $i (0 .. $#liste_serv_LDAP) {
+		$ldap = Net::LDAP->new( "$liste_serv_LDAP[$i]{'hote'}") or warn qq%Connection with $liste_serv_LDAP[$i]{'hote'} failed% and next;
+		local our $mesg = $ldap->bind("$liste_serv_LDAP[$i]{'admindn'}", password=>"$liste_serv_LDAP[$i]{'adminpwd'}") or warn 'LDAP binding error' and next;
+		if ($mesg->code) {warn "[warning] LDAP administrator binding error : ".$mesg->error.'  <-'; next;}
+		$mesg = $ldap->search( base => "$liste_serv_LDAP[$i]{'basederecherche'}" , filter => "uid=$uid" );
+		if ($mesg->code) {warn "[warning] LDAP search error : ".$mesg->error.'  <-'; next;}
+		$entry = $mesg->shift_entry;
+		if ($entry) {last;}
+		$ldap->unbind;
+	}
+	 
+	if ($entry)
+	{
+		$dn = $entry->dn;
+		$eduprimary = $entry->get_value ( 'eduPersonPrimaryAffiliation' );
+		$mail = $entry->get_value ( 'mail' );
+		$cn = $entry->get_value ( 'cn' );
+		return "$eduprimary" , "$mail" , "$cn", "$dn";
+	}
+	else {return;}
+}
+	
+sub Auth
+{
+	local our $uid = shift;
+	local our $userpwd = shift or '';
+	local our @result = Details( $uid );
+	local our $ldap;
+	local our $mesg;
+	if (@result){
+		for my $i (0 .. $#liste_serv_LDAP) {
+			$ldap = Net::LDAP->new( "$liste_serv_LDAP[$i]{'hote'}", onerror => 'warn') or warn qq%Connection with $liste_serv_LDAP[$i]{'hote'} failed% and next;
+			$mesg = $ldap->bind($result[3] , password=>$userpwd ) or next;
+			if ($mesg->code eq '0') {
+				$ldap->unbind;
+				return 'success';}
+		}
+	}
+	return 'error';
+}
+return 1;

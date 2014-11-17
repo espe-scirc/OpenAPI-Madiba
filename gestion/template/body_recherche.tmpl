@@ -1,0 +1,54 @@
+<section role="main" class="container_16 clearfix">
+	<div class="grid_16 corps">
+		<h3>Recherche d'un utilisateur</h3>
+		<form id=formulaire method=post action="GestionCopieur?page=recherche_user">
+			<fieldset>
+			<ol>
+				<li>
+				<label for=nom>Nom d'utilisateur</label>
+				<input id=nom name=id_cherche type=text placeholder="Identifiant informatique" required autofocus>
+				</li>
+			</ol>
+			</fieldset>
+			<fieldset>
+				<button type=submit>Valider</button>
+			</fieldset>
+		</form>
+	</div>
+	
+	[% IF vide || users %]
+	<div class="grid_16 malettes">
+		<h3>R&eacute;sultats de la recherche</h3>
+	[% END %]
+		[% IF vide %]
+		<p><b>Aucun utilisateur ne correspond &agrave; votre recherche</b></p>
+		[% END %]
+		[% IF users %]
+		<table class="bordered" style="margin: 10px auto" width="80%">
+			<thead>
+			<tr>
+				<th>Nom complet</th>
+				<th>Login</th>
+				<th>Cr&eacute;dit (EUR)</th>
+			</tr>
+			</thead>
+			[% FOREACH user IN users.keys %]
+			<tr>
+				<td><a href="GestionCopieur?page=user&uid=[% user %]">[% users.$user.cn %]</a></td>
+				<td>[% user %]</td>
+				[% IF users.$user.undefined %]
+				<td>L'utilisateur n'est pas pr&eacute;sent dans la base de Quota</td>
+				[% ELSE %]
+				<td>
+				[% IF users.$user.superuser %]
+				Cr&eacute;dit <b>inactif</b>
+				[% ELSE %]
+				[% users.$user.credit %]
+				[% END %]</td>
+				[% END %]
+				</tr>
+			[% END %]
+		</table>				
+		[% END %]
+	</div>
+</section>

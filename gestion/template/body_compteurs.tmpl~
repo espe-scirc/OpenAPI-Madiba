@@ -1,0 +1,40 @@
+<section role="main" class="container_16 clearfix">
+	<div class="grid_16 corps">
+		<h3>Compteurs du copieur</h3>
+		<form method="post" action="GestionCopieur?page=affichage_compteurs">
+			<table class="menu_compteurs" style="margin:10px auto;width:95%;">
+				<tr>
+					<td>Depuis : <input type="date" name="date_deb">
+					Jusqu'&agrave; : <input type="date" name="date_fin" value="2014-04-01"><INPUT border="0" align="middle" src="img/loupe.png" type="image" value="submit" height="25" style="padding-bottom:10px;padding-left:10px;"></td>
+					<td>Afficher les : <select name="nb_resultats"><option value="25">25</option><option value="50">50</option><option value="75">75</option><option value="100">100</option></select>
+					<select name="ordre"><option value="derniers">derniers</option><option value="premiers">premiers</option></select> r&eacute;sultats
+				</tr>
+		</form>
+			<table class="bordered" style="margin: 10px auto;width:95%;">
+				<thead>
+				<tr>
+					<th>Utilisateur</th>
+					<th>Date</th>
+					<th>Format</th>
+					<th>Nombre</th>
+					<th>Type</th>
+					<th>Recto / Verso</th>
+					<th>Couleur</th>
+					<th>Prix</th>
+				</tr>
+				</thead>
+	[% FOREACH jobid IN compteurs.keys.sort.reverse %]
+				<tr>
+					<td><a href="GestionCopieur?page=affichage_compteurs&user=[% compteurs.$jobid.uid %]">[% compteurs.$jobid.cn %]</a></td>
+					<td>[% compteurs.$jobid.date %] [% compteurs.$jobid.heure %]</td>
+					<td>[% compteurs.$jobid.media %]</td>
+					<td>[% compteurs.$jobid.nombre %]</td>
+					<td>[% compteurs.$jobid.type %]</td>
+					<td>[% IF compteurs.$jobid.recto %]Recto[% ELSE %] R / V[% END %]</td>
+					<td>[% IF compteurs.$jobid.nb %]Noir & Blanc[% ELSE %]Couleur[% END %]</td>
+					<td>[% compteurs.$jobid.prix %] &euro;</td>
+				</tr>
+	[% END %]
+			</table>
+	</div>
+</section>

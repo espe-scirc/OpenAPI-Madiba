@@ -1,0 +1,11 @@
+<div id="menu_haut">
+		<ul>
+ 		<li><a href="GestionCopieur?page=recherche_user">Rechercher une personne</a></li>
+ 		<li><a href="GestionCopieur?page=affichage_all">Liste compl&egrave;te</a></li>
+		<li><a href="GestionCopieur?page=affichage_compteurs">Afficher les compteurs</a></li>
+		<li><a href="GestionCopieur?page=administration">Administration</a></li>
+		[% IF login %]
+		<li><a href="GestionCopieur?page=deauth" name="confirm">D&eacute;connexion</a> ( <i><b>[% login %]</b></i> ) </li>
+		[% END %]
+ 		</ul>
+</div>

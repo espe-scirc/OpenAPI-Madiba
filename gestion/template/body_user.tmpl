@@ -1,0 +1,82 @@
+<section role="main" class="container_16 clearfix">
+	<div class="grid_16 corps" style="display:inline;">
+		<h3><font style="float:left"><b>[% user %]</b>&nbsp;&nbsp;&nbsp;&nbsp;( [% uid %] )</font>[% IF credit %]<font style="float:right;font-size:0.6em"><u>Cr&eacute;dit actuel</u> : [% credit %] EUR</font>[% END %]<br></h3>
+		<div style="float:left;width:50%;">
+[% IF paiements %]
+			<h4>Hitorique des paiements</h4><br>
+			<table class="bordered" style="margin: 10px auto;width:75%;">
+				<thead>
+				<tr>
+					<th>Date</th>
+					<th>Montant</th>
+					<th>Saisie par</th>
+				</tr>
+				</thead>
+	[% FOREACH date IN paiements.keys.sort %]
+				<tr>	
+					<td>[% paiements.$date.date %]</td>
+					<td>[% paiements.$date.montant %]</td>
+					<td>[% paiements.$date.uid_comptable %]</td>
+				</tr>
+	[% END %]
+			</table><br>
+[% END %]
+			<h4>Saisir un paiement </h4><br>
+			<div style="float:left;width:50%;">
+				<form name="confirm" action="GestionCopieur?page=ajout_credit" method="post">
+				<a title="Le montant 24 correspond &agrave; un montant pay&eacute; de 23 &euro; + 1 &euro; gratuit" style="text-decoration:none;"><span style="cursor: help;">Montant</span></a> : 
+				<select name="montant_credit">
+					<option value="8">8</option>
+					<option value="12">12</option>
+					<option value="16">16</option>
+					<option value="24">24</option>
+				</select>
+				<input type="hidden" name="uid" value="[% uid %]">
+				<input type="hidden" name="dbid" value="[% dbid %]">
+				<b>EUR</b>
+			</div>
+			<div style="float:right;width:50%;text-align:center;">
+				<input type="submit" value="valider le paiement">
+			</div>
+			<div style="width:100%;clear:both;">
+				<br>
+				<input type="checkbox" name="notif_mail" value="1" checked="checked">Envoi d'une notification par mail &agrave; l'utilisateur
+				<input type="hidden" name="mail" value="[% mail %]">
+				</form>
+			</div>
+		</div>
+
+		<div style="float:right;width:50%;border-left: 1px solid #e1e1e1;">
+[% IF compteurs %]
+			<h4>Historique des impressions</h4><br>
+			<table class="bordered" style="margin: 10px auto;width:75%;">
+				<thead>
+				<tr>
+					<th>Date</th>
+					<th>Format</th>
+					<th>Nombre</th>
+				</tr>
+				</thead>
+	[% FOREACH date IN compteurs.keys.sort %]
+				<tr>	
+					<td>[% compteurs.$date.date %]</td>
+					<td>[% compteurs.$date.format %]</td>
+					<td>[% compteurs.$date.nombre %][% IF compteurs.$date.recto %][% ELSE %] R/V[% END %]</td>
+				</tr>
+	[% END %]
+			</table>
+			<p style="font-size:10px;text-align:center;margin-top:5px;">* Tableau succinct, historique complet <a href="GestionCopieur?page=affichage_compteurs&user=[% uid %]">ici</a></p>
+[% END %]
+			<h4>Gestion utilisateur</h4>
+			<form name="confirm" action="GestionCopieur?page=modif_user" method="post">
+			<ul style="margin-left:50px;">
+				<li><input type="checkbox" name="superuser" value="1" [% IF superuser %]checked="checked"[% END %]>Outrepasser le syst&egrave;me de cr&eacute;dit pour cet utilisateur</li>
+				<li><input type="checkbox" name="desactiv_notif_user" value="1" [% IF desactiv_notif_user %]checked="checked"[% END %]>D&eacutesactiver les notifications de l'utilisateur</li>
+			</ul>
+			<p style="text-align:center;"><input type="submit" value="Valider les changements"></p>
+			<input type="hidden" name="dbid" value="[% dbid %]">
+			<input type="hidden" name="uid" value="[% uid %]">
+			</form>
+		</div>
+	</div>
+</section>

@@ -1,0 +1,429 @@
+#! /usr/bin/perl -w
+
+use strict;
+use feature qw/switch/;
+use Apache2::Request;
+use XML::LibXML;
+use lib '/srv/konica/scripts';
+use Ldaptest;
+use DBtest;
+
+local our $r = shift;
+local our $res_path = '/srv/konica/ressources' ;  # Chemin vers les ressources
+local our $PostBuffer='';
+local our $data = '';
+print "Content-type: text/xml\n\n";
+print '<?xml version="1.0" encoding="UTF-8"?>';
+while($r->read($PostBuffer,1024)){$data = "${data}${PostBuffer}"};
+local our $parser = XML::LibXML->new('1.0','UTF-8');
+local our $doc = $parser->load_xml( string => $data );
+local our $env = $doc->documentElement();
+local our $header = $env->firstChild();
+local our $body = $env->lastChild();
+local our $func_called = $body->firstChild()->nodeName;
+local our $node_rep = XML::LibXML::Element->new('REP');
+
+local our $body_rep = $body->cloneNode('0');
+$body_rep->appendChild($body->firstChild()->cloneNode('0'));
+$body_rep->firstChild()->appendChild($body->firstChild()->firstChild()->cloneNode('1'));
+local our $header_func = $header->firstChild()->nodeName;
+$header_func =~ s/DevReq/DevRes/;
+$env->firstChild()->firstChild()->setNodeName( $header_func);
+$env->removeChild( $body );
+
+# Déclaration des actions possibles
+
+sub DevResExtConfirmConnect () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtGetScreen () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep = XML::LibXML::Element->new('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('Screen');
+	$node_rep->appendTextChild('ID' => 'Authentification');
+	$node_rep->appendTextChild('Type' => '2');
+	local our $node_rep2 = XML::LibXML::Element->new('Authentication');
+	$node_rep2->appendTextChild('Title' => 'LogAppli');
+	$node_rep2->appendTextChild('ID' => 'applilog');
+	$node_rep2->appendTextChild('Type' => '2');
+	$node_rep2->appendTextChild('Name' => 'Login');
+	$node_rep->appendChild( $node_rep2 );
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtGetData () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('Type');
+	$node_rep->appendText('4');
+	$body_rep->firstChild()->appendChild($node_rep);
+	local our $node_rep2 = XML::LibXML->load_xml( location => "$res_path/log.xml")->documentElement();
+	$body_rep->firstChild()->appendChild( $node_rep2 );
+}
+
+sub DevResExtGetControlData () {
+	
+	local our @screen_node = $body->findnodes('*//Screen');
+	local our $screen_id = $screen_node[0]->findvalue('ID');
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	if ($screen_id eq "AUTHSCREEN") {
+		local our $keyword = $body->findvalue('*/ObtainCondition/Keyword');
+		local our $userinfo = Ldaptest::Recherche($keyword);
+		if ( scalar(keys %$userinfo) eq '0' ) {
+			$node_rep->setNodeName('Result');
+			$node_rep->appendTextChild('ResultInfo', '2');
+			$node_rep->appendTextChild('ErrorInfo');
+			$node_rep->lastChild()->appendTextChild('Code' , '1');
+			$node_rep->lastChild()->appendTextChild('Description' , 'Aucun utilisateur ne correspond a la recherche');
+		}
+		else
+		{ 
+			$node_rep->setNodeName('Result');
+			$node_rep->appendTextChild('ResultInfo', '1');
+			$body_rep->firstChild()->appendChild($node_rep);
+			$node_rep = XML::LibXML::Element->new('SelectionData');
+			$node_rep->appendTextChild('EndFlag', '1');
+			$node_rep->appendTextChild('TotalItem', scalar(keys(%$userinfo)) );
+			$node_rep->appendTextChild('SelectionList');
+			$node_rep->lastChild()->appendTextChild('ArraySize', scalar( keys (%$userinfo)) );
+			local our $x = 1;
+			while ($x <= scalar(keys(%$userinfo)) ) {
+				foreach ( keys %$userinfo ) {
+					$node_rep->lastChild()->appendTextChild('Selection');
+					$node_rep->lastChild()->lastChild()->appendTextChild('ID', "$x");
+					$node_rep->lastChild()->lastChild()->appendTextChild('Name', "$_");
+					$x += 1;
+				}
+			}
+		}
+	}
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtAuthenticate () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	
+	local our @auth_node = $body->findnodes('*//ValueList');
+	local our $uid = $auth_node[0]->findvalue('Value');
+	local our $password = $auth_node[1]->findvalue('Value');
+	local our $auth = Ldaptest::Auth( "$uid"  , "$password" );
+	
+	if ( $auth eq 'success' )
+	{ 
+		local our $userid = ( DBtest::QueryIDSimple("$uid") || "notfound" );
+		if ( $userid eq "notfound" )
+		{
+			DBtest::QueryAjoutID("$uid");
+			$userid = DBtest::QueryIDSimple("$uid");		
+		}
+		local our @details = Ldaptest::Details("$uid");
+		$node_rep->appendTextChild('ResultInfo', '1');
+		$body_rep->firstChild()->appendChild($node_rep);
+		$node_rep = XML::LibXML::Element->new('AuthenticationState');
+		$node_rep->appendTextChild('State','1');
+		$body_rep->firstChild()->appendChild($node_rep);
+		$node_rep = XML::LibXML::Element->new('User');
+		$node_rep->appendTextChild('ID', $userid );
+		$node_rep->appendTextChild('Name', "$details[2]" );
+		$node_rep->appendTextChild('ServerName','Authentication');
+		$node_rep->appendTextChild('AuthenticationServerType','6');
+		$body_rep->firstChild()->appendChild($node_rep);
+		$node_rep = XML::LibXML::Element->new('Track');
+		$node_rep->appendTextChild('ID', $userid );
+		$node_rep->appendTextChild('Name', "$details[2]" );
+		$body_rep->firstChild()->appendChild($node_rep);
+		$node_rep = XML::LibXML::Element->new('Message');
+		$node_rep->appendTextChild('Value',"Bienvenue $details[2]" ) ;
+		$body_rep->firstChild()->appendChild($node_rep);
+		$node_rep = XML::LibXML::Element->new('UserInformation');
+		$node_rep->appendTextChild('Email');
+		$node_rep->lastChild()->appendTextChild('Address', "$details[1]");
+		$body_rep->firstChild()->appendChild($node_rep);
+	}
+	else
+	{
+		$node_rep->appendTextChild('ResultInfo', '2');
+		$node_rep->appendTextChild('ErrorInfo');
+		$node_rep->lastChild()->appendTextChild('Code' , '1');
+		$node_rep->lastChild()->appendTextChild('Description' , 'Nom d\'utilisateur ou Mot de passe incorrect' );
+		$body_rep->firstChild()->appendChild($node_rep);
+	}
+}
+
+
+
+sub DevResExtGetFunctionLimitation () {
+	
+	local our @user_node = $body->findnodes('*//User');
+	local our $userid = $user_node[0]->findvalue('ID');
+	local our @result = DBtest::QueryUID("$userid");
+	local our $uid = $result[0];
+	local our $superuser = $result[1];
+	local our @ldaprep = Ldaptest::Details( $uid );
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('User');
+	$node_rep->appendTextChild('ID',$userid );
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('FunctionLimitation');
+	if (($ldaprep[0] eq 'student') && ($superuser eq '0') && ( "$result[2]" eq '0.000'))
+	{
+		$node_rep->appendTextChild('Print','1');
+		$node_rep->appendTextChild('PrintSend','1');
+		$node_rep->appendTextChild('Scan','2');
+		$node_rep->appendTextChild('Copy','1');
+
+	}
+	else
+	{
+		$node_rep->appendTextChild('Print','2');
+		$node_rep->appendTextChild('PrintSend','2');
+		$node_rep->appendTextChild('Scan','2');
+		$node_rep->appendTextChild('Copy','2');
+	}
+	$node_rep->appendTextChild('Fax','1');
+	$node_rep->appendTextChild('Box','2');
+	$node_rep->appendTextChild('ScanToUsb','2');
+	$node_rep->appendTextChild('AddressManualInput','2');
+	$node_rep->appendTextChild('OutputLimitation');
+	$node_rep->lastChild()->appendTextChild('ColorPrint','2'); 
+	$node_rep->lastChild()->appendTextChild('MonochromePrint','2');
+	$node_rep->lastChild()->appendTextChild('ColorSend','2');
+	$body_rep->firstChild()->appendChild($node_rep);
+
+}
+
+sub DevResExtGetAccountMap () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new("AccountMapType") ;
+	$node_rep = XML::LibXML->load_xml( location => "$res_path/accountmaptype.xml" )->documentElement();
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('AccountMap');
+	$node_rep = XML::LibXML->load_xml( location => "$res_path/accountmap.xml" )->documentElement();
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtGetCounterTicket () {
+	
+	local our @user_node = $body->findnodes('*//User');
+	local our $userid = $user_node[0]->findvalue('ID');
+	local our @result = DBtest::QueryUID("$userid");
+	local our $uid = $result[0];
+	local our $superuser = $result[1];
+	local our @ldaprep = Ldaptest::Details( $uid );
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('User');
+	$node_rep->appendTextChild('ID', "$userid" );	
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('CounterTicket');
+	if (($ldaprep[0] eq 'student') && ($superuser eq '0') && ( "$result[2]" ne '0.000'))
+	{
+		$node_rep->appendTextChild('Remain');
+		$node_rep->lastChild()->appendTextChild('AccountLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Entry','1');
+		$node_rep->lastChild()->lastChild()->appendTextChild('AccountLimit','0');
+		$node_rep->appendTextChild('Rental');
+		$node_rep->lastChild()->appendTextChild('BoxLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Limitation');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','0');
+		$node_rep->lastChild()->appendTextChild('GroupBoxLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Limitation');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','0');
+		$node_rep->lastChild()->appendTextChild('AccountLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Entry','1');
+		DBtest::QuerySoustractionQuota("$userid", '0', '0', "$result[2]");
+		$node_rep->lastChild()->lastChild()->appendTextChild('AccountLimit',"$result[2]" );
+		$body_rep->firstChild()->appendChild($node_rep);
+	}
+	else
+	{
+		$node_rep->appendTextChild('Remain');
+		$node_rep->lastChild()->appendTextChild('AccountLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->appendTextChild('AccountLimit','0' );
+		$node_rep->appendTextChild('Rental');
+		$node_rep->lastChild()->appendTextChild('BoxLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Limitation');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','0');
+		$node_rep->lastChild()->appendTextChild('GroupBoxLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Limitation');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','0');
+		$node_rep->lastChild()->appendTextChild('AccountLimitation');
+		$node_rep->lastChild()->lastChild()->appendTextChild('Entry','2');
+		$node_rep->lastChild()->lastChild()->appendTextChild('AccountLimit','0' );
+		$body_rep->firstChild()->appendChild($node_rep);
+	}
+}
+	
+		#if ( $quota[0] > 50 ) {
+	#	$quota_copieur = "50";
+	#}
+	#else { $quota_copieur = $quota[0]; }
+	#$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit',"$quota_copieur");
+	#DBtest::QuerySoustractionQuota("$userid", "$quota_copieur", '0', '0');
+#}
+#else
+#{
+#	$node_rep->appendTextChild('Remain');
+#	$node_rep->lastChild()->appendTextChild('PrintLimitation');
+#	$node_rep->lastChild()->lastChild()->appendTextChild('Type','1');
+#	$node_rep->lastChild()->lastChild()->appendTextChild('Total');
+#	$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','1');
+#	$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','100');
+#	$node_rep->appendTextChild('Rental');
+#	$node_rep->lastChild()->appendTextChild('PrintLimitation');
+#	$node_rep->lastChild()->lastChild()->appendTextChild('Type','1');
+#	$node_rep->lastChild()->lastChild()->appendTextChild('Total');
+#	$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Entry','2');
+#	$node_rep->lastChild()->lastChild()->lastChild()->appendTextChild('Limit','0');
+#}
+
+
+sub DevResExtGetUserConfiguration () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtGetNotifyLogout () {
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtReturnCounterTicket () {
+	
+	local our @user_node = $body->findnodes('*//User');
+	local our $userid = $user_node[0]->findvalue('ID');
+	local our @totalnode = $body->findnodes('*//AccountLimitation');
+	local our $credit = $totalnode[0]->findvalue('AccountLimit');
+	DBtest::QueryAjoutQuota($userid,'0','0',"$credit");
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('User');
+	$node_rep->appendTextChild('ID', "$userid" );
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+sub DevResExtNotifyCounter () {
+	local our @user_node = $body->findnodes('*//User');
+	local our $userid = $user_node[0]->findvalue('ID');
+	local our @jobnode = $body->findnodes('*//NotifyJobInfo');
+	local our $job_type = $jobnode[0]->findvalue('Type');
+	local our $job_ID = $jobnode[0]->findvalue('JobID');
+	local our $error_stat = $jobnode[0]->findvalue('ErrorStatus');
+	local our $media_code = "init";
+	local our @array = undef;
+	# Regarder le statue erreur et faire qqchose si erreur
+
+	if ( "$job_type" gt 2 ) {
+		# Pas de comptage
+		$media_code = 'plusque2';
+	}
+	elsif ( ("$job_type" ne 1) && ("$job_type" ne 2)) {
+		# Erreur sur le job_type
+		$media_code = 'erreurjob';
+	}
+	else {
+		if ( "$job_type" eq 1 ) { $job_type = 'copy';} elsif ( "$job_type" eq 2 ) { $job_type = 'print';}
+		local our @account_node = $body->findnodes('*//Account');
+		local our$array_size = $account_node[0]->findvalue('*//ArraySize');
+		@array = $account_node[0]->findnodes('*//DocumentCharge');
+		for ( my $i = 0 ; $i < $array_size ; $i++ ) {
+			
+			$media_code = $array[$i]->findvalue('Code');
+			local our $media_type = undef;
+			local our $NB = undef;
+			local our $recto = undef;
+			
+			if (("$media_code" eq "259")||("$media_code" eq "8451")||("$media_code" eq "16643"))  { $media_type = 'A3';}
+			elsif (("$media_code" eq "260")||("$media_code" eq "8452")||("$media_code" eq "16644"))  {$media_type = 'A4';}
+			elsif (("$media_code" eq "261")||("$media_code" eq "8453")||("$media_code" eq "16645"))  {$media_type = 'A5';}
+			else {$media_type = 'Inconnu';}
+			local our $color_type = $array[$i]->findvalue('ColorType');
+			if ( $color_type eq 1 ) { $NB = 0 ;}
+			else { $NB = 1; }
+			local our $print_side = $array[$i]->findvalue('PrintSide');
+			if ( $print_side eq 2 ) { $recto = 0 ;}
+			else { $recto = 1; }
+			local our $nombre_doc = $array[$i]->findvalue('DocumentCount');
+			local our $prix = $array[$i]->findvalue('Charge');
+			DBtest::AjoutCompteur( "$job_ID","$userid","$job_type", "$media_type","$NB","$recto","$nombre_doc","$prix" ) ;
+		}
+	}
+	
+	$func_called =~ s/DevReqExt/DevResExt/;
+	$body_rep->firstChild()->setNodeName($func_called);
+	$node_rep->setNodeName('Result');
+	$node_rep->appendTextChild('ResultInfo', '1');
+	$body_rep->firstChild()->appendChild($node_rep);
+	$node_rep = XML::LibXML::Element->new('User');
+	$node_rep->appendTextChild('ID', "$userid" );
+	$body_rep->firstChild()->appendChild($node_rep);
+}
+
+given($func_called) {
+	when (/DevReqExtConfirmConnect$/) {DevResExtConfirmConnect();}
+	when (/DevReqExtGetScreen$/) {DevResExtGetScreen();}
+	when (/DevReqExtGetData$/) {DevResExtGetData();}
+	when (/DevReqExtGetControlData$/) {DevResExtGetControlData();}
+	when (/DevReqExtAuthenticate$/) {DevResExtAuthenticate();}
+	when (/DevReqExtGetFunctionLimitation$/) {DevResExtGetFunctionLimitation();}
+	when (/DevReqExtGetAccountMap$/) {DevResExtGetAccountMap();}
+	when (/DevReqExtGetCounterTicket$/) {DevResExtGetCounterTicket();}
+	when (/DevReqExtGetUserConfiguration$/) {DevResExtGetUserConfiguration();}
+	when (/DevReqExtGetNotifyLogout$/) {DevResExtGetNotifyLogout();}
+	when (/DevReqExtReturnCounterTicket$/) {DevResExtReturnCounterTicket();}
+	when (/DevReqExtNotifyCounter$/) {DevResExtNotifyCounter();}
+	default {return 1;}
+}
+
+$env->addChild($body_rep);
+print $env->toString();

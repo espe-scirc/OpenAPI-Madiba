@@ -1,0 +1,45 @@
+<section role="main" class="container_16 clearfix">
+	<div class="grid_16 malettes">
+		<h3>Gestionnaires de l'application</h3>
+		<table class="bordered" style="margin: 10px auto;width:75%;">
+			<thead>
+				<tr>
+					<th>Nom complet</th>
+					<th>Login</th>
+					<th colspan="2">Notifications</th>
+				</tr>
+			</thead>
+			
+[% FOREACH user IN gestionnaires.keys %]
+			<tr>
+				<form name="supgestion" method="post" action="GestionCopieur?page=suppression_gestionnaire">
+				<td><input type="image" value="sup" src="img/delete_256.png" height="12">&nbsp;&nbsp;[% gestionnaires.$user.cn %]&nbsp;&nbsp;&nbsp;&nbsp;</td>
+				<input type="hidden" name="cn_sup" value="[% gestionnaires.$user.cn %]">
+				<input type="hidden" name="uid_sup" value="[% user %]">
+				</form>
+				<td>[% user %]</td>
+				<form method="post" action="GestionCopieur?page=administration">
+				<td style="text-align:right;width:150px;">
+				<input type="checkbox" name="notif_compteurs" value="1"[% IF gestionnaires.$user.notif_compt %] checked[% END %]>compteurs<br>
+				<input type="checkbox" name="notif_paiements" value="1"[% IF gestionnaires.$user.notif_paiement %] checked[% END %]>paiements</td>
+				<input type="hidden" name="ancien_notif_compteurs" value="[% gestionnaires.$user.notif_compt %]">
+				<input type="hidden" name="ancien_notif_paiements" value="[% gestionnaires.$user.notif_paiement %]">
+				<input type="hidden" name="uid_modif" value="[% user %]">
+				</td>
+				<td style="border-left:none"><input type="image" src="img/modif.png" height="18" style="vertical-align:middle" value="modif"></td>
+				</form>
+			</tr>
+[% END %]
+			<tr>
+				<form class="ui-widget" id="confirm" name="confirm" method="post" action="GestionCopieur?page=ajout_gestionnaire">
+				<td colspan="4">
+				<label for="nom_gestionnaire" style="font-size:15px;">Ajout gestionnaire :</label>
+				<input type="text" id="cn" name="nom_gestionnaire" size=20 placeholder="Nom &agrave; ajouter">
+				<input type="hidden" id="uid" name="uid_gestionnaire">&nbsp;<input type="image" src="img/util-add.png" height=18 style="vertical-align:middle" value="add">
+				</td>
+				</form>
+			</tr>
+		</table>
+	</div>
+</section>
+

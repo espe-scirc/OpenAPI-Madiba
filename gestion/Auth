@@ -1,0 +1,50 @@
+#!/usr/bin/perl -w
+use Apache2::Request;
+use Template;
+use strict;
+use CGI::Cookie;
+use CGI::Session;
+use List::Util qw(first);
+use lib '/srv/konica/scripts';
+use Ldaptest;
+use DBtest;
+
+local our $body_def = undef;
+local our $r = shift;
+local our $req = Apache2::Request->new($r);
+local our @cook_recu = CGI::Cookie->fetch($r);
+local our $cook_sid = first { /CGISESSID=/ } @cook_recu;
+local our $sid = undef;
+if ($cook_sid) { 
+	$sid = $cook_sid->value; 
+}
+local our $session = new CGI::Session(undef, $sid, {Directory=>'/tmp'});
+$sid = $session->id() ;
+local our $c = CGI::Cookie->new(- name => 'CGISESSID',
+- value => $sid );
+
+
+local our $res_auth = 'Un probl&egrave;me est survenu';
+local our $img = '<img src=img/delete_256.png height=18>';
+local our $auth_result;
+
+local our $userid = ( $req->param('userid') || 'undef' );
+local our $password = ( $req->param('password') || 'undef' );
+
+local our $result = ( DBtest::QueryAdminQuota($userid) || 'undef' );
+if ($result eq $userid) { 
+		$auth_result = Ldaptest::Auth( "$userid"  , "$password" );
+		if ($auth_result eq 'success') { $res_auth = "Authentification r&eacute;ussie";
+			$img = '<img src=img/valid.png height=18>';
+			$session->param('logged','true');
+			$session->param('login', $userid ); 
+			$session->expire('15m');
+		}
+		else { $res_auth = 'L\'authentification &agrave; &eacute;chou&eacute;e'; }
+
+}
+else { $res_auth = "Vous ne pouvez pas g&eacute;rer les quotas";}
+
+print "Set-Cookie: $c\n";
+print "Content-type: application/html\n\n";
+print qq%<div title="R&eacute;sultat de l'authentification"><p style="text-align:center">$img $res_auth</div>%;	
