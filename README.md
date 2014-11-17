@@ -14,7 +14,7 @@ Rappel : Le code source disponible ici est fourni "en l'état".
 
 Installation :
 
-  Si vous souhaitez utiliser ce code, il y a quelques chemin inscrit en dur des les scripts. Toujours au début, mais quand même.
+  Si vous souhaitez utiliser ce code, il y a quelques chemin inscrit en dur dans les scripts. Toujours au début, mais quand même.
   Pour vous évitez les modifications, vous pouvez mettre le code suivant dans : /srv/konica
   
   Ensuite, il y a deux fichiers de configuration dans scripts : Ldaptest.pm-a-modifier et DBtest.pm-a-modifier
@@ -26,6 +26,6 @@ Installation :
   
   Bien évidemment, il y a des pré-requis :
   
-  Plusieurs modules Perl sont indispensables ainsi qu'un serveur HTTP. Je vous fourni des fichiers de configuration Apache fonctionnelle sous Debian Wheezy.
+  Plusieurs modules Perl sont indispensables ainsi qu'un serveur HTTP. Je vous fournie des fichiers de configuration Apache fonctionnelle sous Debian Wheezy.
   
  Section à finir.
