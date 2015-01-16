@@ -8,7 +8,7 @@ Application d'authentification et de suivi de volume pour les copieurs Konica
 
 Rappel : Le code source disponible ici est fourni "en l'état".
   En aucun cas, les auteurs de ce code ne pourront être tenu pour reponsable de tout dommage causé à un copieur,
-  un ordinateur, Internet, votre grand-mère ou encore les abeilles.
+  un ordinateur, Internet etc...
   
 ==================================================================================
 
