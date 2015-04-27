@@ -28,4 +28,3 @@ Installation :
   
   Plusieurs modules Perl sont indispensables ainsi qu'un serveur HTTP. Je vous fournie des fichiers de configuration Apache fonctionnelle sous Debian Wheezy.
   
- Section à finir.
